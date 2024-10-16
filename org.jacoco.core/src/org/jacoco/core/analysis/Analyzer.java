@@ -17,6 +17,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -53,6 +55,9 @@ public class Analyzer {
 
 	private final StringPool stringPool;
 
+	private final String includes;
+	private final String excludes;
+
 	/**
 	 * Creates a new analyzer reporting to the given output.
 	 *
@@ -67,6 +72,18 @@ public class Analyzer {
 		this.executionData = executionData;
 		this.coverageVisitor = coverageVisitor;
 		this.stringPool = new StringPool();
+		this.includes = null;
+		this.excludes = null;
+	}
+
+	public Analyzer(final ExecutionDataStore executionData,
+			ICoverageVisitor coverageVisitor, String includes,
+			String excludes) {
+		this.executionData = executionData;
+		this.coverageVisitor = coverageVisitor;
+		this.stringPool = new StringPool();
+		this.includes = includes;
+		this.excludes = excludes;
 	}
 
 	/**
@@ -103,6 +120,13 @@ public class Analyzer {
 		return new ClassProbesAdapter(analyzer, false);
 	}
 
+	private boolean isMatch(String text, String pattern) {
+		String regex = pattern.replace("*", ".*").replace("?", ".");
+		Pattern p = Pattern.compile(regex);
+		Matcher m = p.matcher(text);
+		return m.matches();
+	}
+
 	private void analyzeClass(final byte[] source) {
 		final long classId = CRC64.classId(source);
 		final ClassReader reader = InstrSupport.classReaderFor(source);
@@ -112,6 +136,44 @@ public class Analyzer {
 		if ((reader.getAccess() & Opcodes.ACC_SYNTHETIC) != 0) {
 			return;
 		}
+
+		String[] includesList = null;
+		if (this.includes != null && !this.includes.isEmpty()) {
+			includesList = this.includes.split(":");
+		}
+
+		String[] excludesList = null;
+		if (this.excludes != null && !this.excludes.isEmpty()) {
+			excludesList = this.excludes.split(":");
+		}
+
+		String className = reader.getClassName().replace("/", ".");
+
+		if (includesList != null) {
+			boolean match = false;
+
+			for (String include : includesList) {
+				if (include != null && !include.isEmpty()
+						&& this.isMatch(className, include)) {
+					match = true;
+					break;
+				}
+			}
+
+			if (!match) {
+				return;
+			}
+		}
+
+		if (excludesList != null) {
+			for (String exclude : excludesList) {
+				if (exclude != null && !exclude.isEmpty()
+						&& this.isMatch(className, exclude)) {
+					return;
+				}
+			}
+		}
+
 		final ClassVisitor visitor = createAnalyzingVisitor(classId,
 				reader.getClassName());
 		reader.accept(visitor, 0);

@@ -106,7 +106,6 @@ public abstract class ReportPage implements ILinkable {
 		breadcrumb(navigation, folder);
 		body.h1().text(getLinkLabel());
 		content(body);
-		footer(body);
 	}
 
 	/**

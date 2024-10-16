@@ -58,7 +58,7 @@ public class Report extends Command {
 	int tabwidth = 4;
 
 	@Option(name = "--name", usage = "name used for this report", metaVar = "<name>")
-	String name = "JaCoCo Coverage Report";
+	String name = "Code Coverage Report";
 
 	@Option(name = "--encoding", usage = "source file encoding (by default platform encoding is used)", metaVar = "<charset>")
 	String encoding;
@@ -71,6 +71,11 @@ public class Report extends Command {
 
 	@Option(name = "--html", usage = "output directory for the HTML report", metaVar = "<dir>")
 	File html;
+
+	@Option(name = "--includes", usage = "A list of class names that should be included for this report.", metaVar = "<includes>")
+	String includes = "com.happyelements.*";
+	@Option(name = "--excludes", usage = "A list of class names that should be excluded for this report.", metaVar = "<excludes>")
+	String excludes = null;
 
 	@Override
 	public String description() {
@@ -105,7 +110,8 @@ public class Report extends Command {
 	private IBundleCoverage analyze(final ExecutionDataStore data,
 			final PrintWriter out) throws IOException {
 		final CoverageBuilder builder = new CoverageBuilder();
-		final Analyzer analyzer = new Analyzer(data, builder);
+		final Analyzer analyzer = new Analyzer(data, builder, this.includes,
+				this.excludes);
 		for (final File f : classfiles) {
 			analyzer.analyzeAll(f);
 		}
